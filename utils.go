@@ -22,10 +22,6 @@ func getAllProfiles() []string {
 		log.Fatalf("Unable to unmarshal JSON file :%v", err)
 	}
 
-	for _, profile := range profiles.Profiles {
-		log.Println("Profile: " + profile)
-	}
-
 	// Close file
 	defer func(jsonFile *os.File) {
 		_ = jsonFile.Close()

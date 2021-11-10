@@ -16,14 +16,7 @@ Notes from Alex:
 func main() {
 	// Get existing spreadsheet
 	spreadsheet, _ := getSpreadsheet(SpreadsheetId)
-
-	// TODO: Concurrently run all profiles separately, then aggregate data into spreadsheet.
-	//profiles := getAllProfiles()
-	//log.Println("First profile: " + profiles[0])
-
 	setupSpreadsheet(spreadsheet.SpreadsheetId)
 	populateSpreadsheet(spreadsheet.SpreadsheetId)
-
-	// Metadata
 	log.Printf("Spreadsheet URL: %s\t\n", spreadsheet.SpreadsheetUrl)
 }

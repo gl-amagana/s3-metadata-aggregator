@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-// Just pass that BucketResultCollection struct in to whatever concurrent functions you want, will make sure your list appends are always thread safe.
+// NOTE: Just pass that BucketResultCollection struct in to whatever concurrent functions you want, will make sure your list appends are always thread safe.
 
 type BucketMetadataInput struct {
 	macie macie2.Macie2

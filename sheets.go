@@ -162,15 +162,6 @@ func populateSpreadsheet(spreadsheetId string) {
 	log.Println("Complete.")
 }
 
-type BucketMetadata struct {
-	accountId        string
-	bucketName       string
-	encryptionType   string
-	objectsEncrypted int64
-	isVersioned      bool
-	isLogging        bool
-}
-
 func updateSheet(spreadsheetId string, req *sheets.Request) (*sheets.BatchUpdateSpreadsheetResponse, error) {
 	srv := sheetService()
 

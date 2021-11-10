@@ -7,8 +7,16 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"log"
-	"sync"
 )
+
+type BucketMetadata struct {
+	accountId        string
+	bucketName       string
+	encryptionType   string
+	objectsEncrypted int64
+	isVersioned      bool
+	isLogging        bool
+}
 
 //getAwsSession - Returns AWS Session
 func getAwsSession() *session.Session {
@@ -57,33 +65,6 @@ func describeAllBuckets() ([]BucketMetadata, error) {
 	return bucketMetadataList, nil
 }
 
-func getAllDataConcurrently() {
-	bucketMetadataMap := sync.Map{}
-	waitGroup := sync.WaitGroup{}
-	profiles := getAllProfiles()
-
-	for i, profile := range profiles {
-		waitGroup.Add(1)
-
-		profile := profile
-		go func(idx int) {
-
-			session.Must(session.NewSessionWithOptions(session.Options{
-				SharedConfigState: session.SharedConfigEnable,
-				Profile:           string(profile),
-			}))
-
-			bucketMetadataList, err := describeAllBuckets()
-			if err != nil {
-				panic(err)
-			}
-			bucketMetadataMap.Store(idx, bucketMetadataList)
-			waitGroup.Done()
-		}(i)
-	}
-	waitGroup.Wait()
-}
-
 // getBucketLoggingByBucket - Returns bool if logging is enabled for given bucket
 func getBucketLoggingByBucket(bucketName string) bool {
 	result, err := getBucketLogging(bucketName)
@@ -91,6 +72,7 @@ func getBucketLoggingByBucket(bucketName string) bool {
 		log.Printf("Got an error grabbing bucket ownership metadata: %v", err)
 	}
 
+	// go has no ternary operator... :cry:
 	isLogging := false
 	if result.LoggingEnabled != nil {
 		isLogging = true

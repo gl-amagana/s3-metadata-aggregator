@@ -18,4 +18,6 @@ credentials.json
 profiles.json
 token.json
 
+# idea
+.idea/*
 
