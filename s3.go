@@ -4,9 +4,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/macie2"
+	"github.com/aws/aws-sdk-go/service/macie2/macie2iface"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3iface"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"log"
+	"sync"
 )
 
 type BucketMetadata struct {
@@ -18,35 +21,56 @@ type BucketMetadata struct {
 	isLogging        bool
 }
 
-//getAwsSession - Returns AWS Session
-func getAwsSession() *session.Session {
-	return session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-		Profile:           string("staging"),
-	}))
+type BucketMetaDataCollection struct {
+	lock  sync.Mutex
+	items []*BucketMetadata
 }
+
+func (b *BucketMetaDataCollection) Insert(result ...*BucketMetadata) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	b.items = append(b.items, result...)
+}
+
+func (b *BucketMetaDataCollection) GetItems() []*BucketMetadata{
+	b.lock.Lock()
+	defer b.lock.Unlock()
+	return b.items
+}
+
+type MetaDataGetter struct {
+	macie macie2iface.Macie2API
+	s3 s3iface.S3API
+}
+
+//getAwsSession - Returns AWS Session
+//func getAwsSession() *session.Session {
+//	return session.Must(session.NewSessionWithOptions(session.Options{
+//		SharedConfigState: session.SharedConfigEnable,
+//		Profile:           string("staging"),
+//	}))
+//}
 
 // getCallerIdentity - Returns metadata about account
-func getCallerIdentity() (*sts.GetCallerIdentityOutput, error) {
-	svc := sts.New(getAwsSession())
-	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
+//func getCallerIdentity() (*sts.GetCallerIdentityOutput, error) {
+//	svc := sts.New(getAwsSession())
+//	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return result, nil
+//}
 
 // describeAllBuckets - Returns all buckets' metadata
-func describeAllBuckets() ([]BucketMetadata, error) {
-	svc := macie2.New(getAwsSession())
+func (gen *MetaDataGetter) describeAllBuckets() ([]*BucketMetadata, error) {
 
-	var bucketMetadataList []BucketMetadata
+	var bucketMetadataList []*BucketMetadata
 	count := 0
-	err := svc.DescribeBucketsPages(&macie2.DescribeBucketsInput{MaxResults: aws.Int64(50)}, func(page *macie2.DescribeBucketsOutput, lastPage bool) bool {
+	err := gen.macie.DescribeBucketsPages(&macie2.DescribeBucketsInput{MaxResults: aws.Int64(50)}, func(page *macie2.DescribeBucketsOutput, lastPage bool) bool {
 		for _, bucket := range page.Buckets {
 			count++
-			bucketMetadataList = append(bucketMetadataList, BucketMetadata{
+			bucketMetadataList = append(bucketMetadataList, &BucketMetadata{
 				accountId:        *bucket.AccountId,
 				bucketName:       *bucket.BucketName,
 				encryptionType:   *bucket.ServerSideEncryption.Type,
@@ -92,4 +116,3 @@ func getBucketLogging(bucket string) (*s3.GetBucketLoggingOutput, error) {
 }
 
 // Ref: https://stackoverflow.com/questions/52936693/aws-s3-bucket-encryption-bucket-property-setting-vs-bucket-policy-setting
-
