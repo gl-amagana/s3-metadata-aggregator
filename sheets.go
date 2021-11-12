@@ -124,7 +124,7 @@ func createSpreadsheet() sheets.Spreadsheet {
 }
 
 // setupSpreadsheet - Adds header values to spreadsheet
-func setupSpreadsheet(spreadsheetId string) string {
+func setupSheet(spreadsheetId string) string {
 	srv := sheetService()
 
 	sheetTitle := time.Now().Format("2006-02-01")
