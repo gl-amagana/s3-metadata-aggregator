@@ -170,18 +170,31 @@ func populateSpreadsheet(spreadsheetId string, sheetTitle string, collection *Bu
 	log.Println("Populating spreadsheet...")
 	srv := sheetService()
 
-	writeRange := sheetTitle +"!A2"
-	sheetData := sheets.ValueRange{}
+	writeRange := sheetTitle + "!A2"
 
+	var values [][]interface{}
 	for _, bucket := range collection.GetItems() {
-		dataInput := []interface{}{bucket.accountId, bucket.bucketName, bucket.encryptionType, bucket.isVersioned, bucket.objectsEncrypted, bucket.isLogging}
-		sheetData.Values = append(sheetData.Values, dataInput)
-
-		_, err := srv.Spreadsheets.Values.Update(spreadsheetId, writeRange, &sheetData).ValueInputOption("RAW").Do()
-		if err != nil {
-			log.Fatalf("Unable to write to spreadsheet: %v\n", err)
-		}
+		values = append(values, []interface{}{
+			bucket.accountId,
+			bucket.bucketName,
+			bucket.encryptionType,
+			bucket.isVersioned,
+			bucket.objectsEncrypted,
+			bucket.isLogging,
+		})
 	}
+
+	batchValuesRequest := sheets.BatchUpdateValuesRequest{ValueInputOption: "RAW"}
+	batchValuesRequest.Data = append(batchValuesRequest.Data, &sheets.ValueRange{
+		Range:  writeRange,
+		Values: values,
+	})
+
+	_, err := srv.Spreadsheets.Values.BatchUpdate(spreadsheetId, &batchValuesRequest).Do()
+	if err != nil {
+		log.Fatalf("Unable to write to spreadsheet: %v", err)
+	}
+
 	log.Println("Complete.")
 }
 

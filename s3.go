@@ -90,7 +90,7 @@ func getAllBucketMetadata() *BucketMetaDataCollection {
 	results := &BucketMetaDataCollection{}
 	wg := sync.WaitGroup{}
 
-	for _, getter := range awsClients {
+	for _, client := range awsClients {
 		wg.Add(1)
 
 		co := func(client *AWSClients, results *BucketMetaDataCollection) {
@@ -102,7 +102,7 @@ func getAllBucketMetadata() *BucketMetaDataCollection {
 			}
 			results.Insert(bucketResults...)
 		}
-		go co(getter, results)
+		go co(client, results)
 	}
 	wg.Wait()
 
