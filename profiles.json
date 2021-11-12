@@ -1,0 +1,17 @@
+{
+  "profiles": [
+    "dev",
+    "staging",
+    "perf",
+    "prod",
+    "datadev",
+    "dataprod",
+    "kronainternal",
+    "kronadev",
+    "kronaperf",
+    "kronauat",
+    "dnsmanagement",
+    "itdev",
+    "itoperations"
+  ]
+}
