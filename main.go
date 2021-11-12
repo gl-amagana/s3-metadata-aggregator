@@ -1,11 +1,6 @@
 package main
 
-import (
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/macie2"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"sync"
-)
+import "log"
 
 /* TODO BLOCK ---
 
@@ -18,44 +13,13 @@ Notes from Alex:
 
 func main() {
 	// Get existing spreadsheet
+	spreadsheet, _ := getSpreadsheet(SpreadsheetId)
+	sheetTitle := setupSpreadsheet(spreadsheet.SpreadsheetId)
 
-	//profiles := getAllProfiles()
-	profiles := []string{"dev", "staging"}
+	// Collect data
+	bucketMetadataCollection := getAllBucketMetadata()
 
-	metadataGetters := []*MetaDataGetter{}
-
-	for _, profile := range profiles {
-		sess := session.Must(session.NewSessionWithOptions(session.Options{
-			SharedConfigState: session.SharedConfigEnable,
-			Profile:           profile,
-		}))
-		metadataGetters = append(metadataGetters, &MetaDataGetter{
-			macie: macie2.New(sess),
-			s3:    s3.New(sess),
-		})
-	}
-
-	results := &BucketMetaDataCollection{}
-	wg := sync.WaitGroup{}
-
-	for _, getter := range metadataGetters {
-		wg.Add(1)
-		co := func(g *MetaDataGetter) {
-			bucketResults, err := g.describeAllBuckets()
-			panic(err)
-			results.Insert(bucketResults...)
-			wg.Done()
-		}
-
-		go co(getter)
-	}
-
-	wg.Wait()
-
-	// Set section
-
-	//spreadsheet, _ := getSpreadsheet(SpreadsheetId)
-	//setupSpreadsheet(spreadsheet.SpreadsheetId)
-	//populateSpreadsheet(spreadsheet.SpreadsheetId)
-	//log.Printf("Spreadsheet URL: %s\t\n", spreadsheet.SpreadsheetUrl)
+	// Set spreadsheet data
+	populateSpreadsheet(spreadsheet.SpreadsheetId, sheetTitle, bucketMetadataCollection)
+	log.Printf("Spreadsheet URL: %s\t\n", spreadsheet.SpreadsheetUrl)
 }

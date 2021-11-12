@@ -124,40 +124,63 @@ func createSpreadsheet() sheets.Spreadsheet {
 }
 
 // setupSpreadsheet - Adds header values to spreadsheet
-func setupSpreadsheet(spreadsheetId string) {
+func setupSpreadsheet(spreadsheetId string) string {
 	srv := sheetService()
 
-	// Spreadsheet Headers
-	valueRange := sheets.ValueRange{}
-	headers := []interface{}{"Account ID", "Bucket Name", "Encryption", "isVersioned?", "No. of Objects Unencrypted", "isLoggingEnabled?"} // TODO: Maybe add account ID field?
-	valueRange.Values = append(valueRange.Values, headers)
+	sheetTitle := time.Now().Format("2006-02-01")
 
-	_, err := srv.Spreadsheets.Values.Update(spreadsheetId, "A1", &valueRange).ValueInputOption("RAW").Do()
+	// Create new sheet w/ title as current date.
+	sheetPropertyReq := sheets.Request{
+		AddSheet: &sheets.AddSheetRequest{
+			Properties: &sheets.SheetProperties{
+				Title:    sheetTitle,
+				TabColor: &sheets.Color{Red: float64(1)},
+			},
+		},
+	}
+
+	writeRange := sheetTitle + "!A1"
+
+	batchRequest := sheets.BatchUpdateSpreadsheetRequest{
+		Requests: []*sheets.Request{&sheetPropertyReq}}
+
+	_, err := srv.Spreadsheets.BatchUpdate(spreadsheetId, &batchRequest).Do()
+	if err != nil {
+		log.Fatalf("Unable to add new sheet: %v", err)
+	}
+
+	// Add appropriate headers
+	values := [][]interface{}{{"Account ID", "Bucket Name", "Encryption", "isVersioned?", "No. of Objects Unencrypted", "isLoggingEnabled?"}}
+	batchValueReq := sheets.BatchUpdateValuesRequest{ValueInputOption: "RAW"}
+	batchValueReq.Data = append(batchValueReq.Data, &sheets.ValueRange{
+		Range:  writeRange,
+		Values: values,
+	})
+
+	_, err = srv.Spreadsheets.Values.BatchUpdate(spreadsheetId, &batchValueReq).Do()
 	if err != nil {
 		log.Fatalf("Unable to write to spreadsheet: %v", err)
 	}
+
+	return sheetTitle
 }
 
 // populateSpreadsheet - Populates appropriate columns; must match headers
-func populateSpreadsheet(spreadsheetId string) {
-	callerIdentity, _ := getCallerIdentity()
+func populateSpreadsheet(spreadsheetId string, sheetTitle string, collection *BucketMetaDataCollection) {
+	log.Println("Populating spreadsheet...")
 	srv := sheetService()
 
-	writeRangeData := "A2"
+	writeRange := sheetTitle +"!A2"
 	sheetData := sheets.ValueRange{}
 
-	buckets, _ := describeAllBuckets()
-
-	log.Printf("Running for buckets in account: %s...\n", *callerIdentity.Account)
-	for _, bucket := range buckets {
+	for _, bucket := range collection.GetItems() {
 		dataInput := []interface{}{bucket.accountId, bucket.bucketName, bucket.encryptionType, bucket.isVersioned, bucket.objectsEncrypted, bucket.isLogging}
 		sheetData.Values = append(sheetData.Values, dataInput)
 
-		_, err := srv.Spreadsheets.Values.Update(spreadsheetId, writeRangeData, &sheetData).ValueInputOption("RAW").Do()
+		_, err := srv.Spreadsheets.Values.Update(spreadsheetId, writeRange, &sheetData).ValueInputOption("RAW").Do()
 		if err != nil {
 			log.Fatalf("Unable to write to spreadsheet: %v\n", err)
 		}
-		time.Sleep(10)
 	}
 	log.Println("Complete.")
 }
