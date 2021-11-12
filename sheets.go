@@ -35,7 +35,9 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 	tok := &oauth2.Token{}
 	err = json.NewDecoder(f).Decode(tok)
 	return tok, err
@@ -73,7 +75,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 }
 
 // sheetService - Creates a Google Sheet client
-func sheetService() *sheets.Service {
+func sheetService() *sheets.SpreadsheetsService {
 	ctx := context.Background()
 	b, err := ioutil.ReadFile("credentials.json")
 	if err != nil {
@@ -91,13 +93,13 @@ func sheetService() *sheets.Service {
 	if err != nil {
 		log.Fatalf("Unable to retrieve Sheets client: %v", err)
 	}
-	return srv
+	return srv.Spreadsheets
 }
 
 // getSpreadsheet - Gets an existing Google spreadsheet
 func getSpreadsheet(spreadsheetId string) (*sheets.Spreadsheet, error) {
-	srv := sheetService()
-	response, err := srv.Spreadsheets.Get(spreadsheetId).Do()
+	spreadsheet := sheetService()
+	response, err := spreadsheet.Get(spreadsheetId).Do()
 	if err != nil {
 		log.Fatalf("Unable to find spreadsheet: %v\n", err)
 		return nil, err
@@ -108,12 +110,13 @@ func getSpreadsheet(spreadsheetId string) (*sheets.Spreadsheet, error) {
 
 // createSpreadsheet - Creates a new Google Spreadsheet
 func createSpreadsheet() sheets.Spreadsheet {
-	srv := sheetService()
+	spreadsheet := sheetService()
+
 	currentTime := time.Now().Format("2006-02-01")
 	spreadsheetTitle := "S3 Report - " + currentTime
-	spreadsheet := sheets.Spreadsheet{Properties: &sheets.SpreadsheetProperties{Title: spreadsheetTitle}}
+	newSpreadsheet := sheets.Spreadsheet{Properties: &sheets.SpreadsheetProperties{Title: spreadsheetTitle}}
 
-	response, err := srv.Spreadsheets.Create(&spreadsheet).Do()
+	response, err := spreadsheet.Create(&newSpreadsheet).Do()
 	if err != nil {
 		log.Fatalf("Unable to create spreadsheet: %v", err)
 		return sheets.Spreadsheet{}
@@ -125,7 +128,7 @@ func createSpreadsheet() sheets.Spreadsheet {
 
 // setupSpreadsheet - Adds header values to spreadsheet
 func setupSheet(spreadsheetId string) string {
-	srv := sheetService()
+	spreadsheet := sheetService()
 
 	sheetTitle := time.Now().Format("2006-02-01")
 
@@ -144,7 +147,7 @@ func setupSheet(spreadsheetId string) string {
 	batchRequest := sheets.BatchUpdateSpreadsheetRequest{
 		Requests: []*sheets.Request{&sheetPropertyReq}}
 
-	_, err := srv.Spreadsheets.BatchUpdate(spreadsheetId, &batchRequest).Do()
+	_, err := spreadsheet.BatchUpdate(spreadsheetId, &batchRequest).Do()
 	if err != nil {
 		log.Fatalf("Unable to add new sheet: %v", err)
 	}
@@ -157,7 +160,7 @@ func setupSheet(spreadsheetId string) string {
 		Values: values,
 	})
 
-	_, err = srv.Spreadsheets.Values.BatchUpdate(spreadsheetId, &batchValueReq).Do()
+	_, err = spreadsheet.Values.BatchUpdate(spreadsheetId, &batchValueReq).Do()
 	if err != nil {
 		log.Fatalf("Unable to write to spreadsheet: %v", err)
 	}
@@ -168,7 +171,7 @@ func setupSheet(spreadsheetId string) string {
 // populateSpreadsheet - Populates appropriate columns; must match headers
 func populateSpreadsheet(spreadsheetId string, sheetTitle string, collection *BucketMetaDataCollection) {
 	log.Println("Populating spreadsheet...")
-	srv := sheetService()
+	spreadsheet := sheetService()
 
 	writeRange := sheetTitle + "!A2"
 
@@ -190,26 +193,10 @@ func populateSpreadsheet(spreadsheetId string, sheetTitle string, collection *Bu
 		Values: values,
 	})
 
-	_, err := srv.Spreadsheets.Values.BatchUpdate(spreadsheetId, &batchValuesRequest).Do()
+	_, err := spreadsheet.Values.BatchUpdate(spreadsheetId, &batchValuesRequest).Do()
 	if err != nil {
 		log.Fatalf("Unable to write to spreadsheet: %v", err)
 	}
 
 	log.Println("Complete.")
-}
-
-func updateSheet(spreadsheetId string, req *sheets.Request) (*sheets.BatchUpdateSpreadsheetResponse, error) {
-	srv := sheetService()
-
-	update := sheets.BatchUpdateSpreadsheetRequest{
-		Requests: []*sheets.Request{req},
-	}
-
-	response, err := srv.Spreadsheets.BatchUpdate(spreadsheetId, &update).Do()
-	if err != nil {
-		log.Fatalf("Unable to update spreadsheet: %v", err)
-		return nil, err
-	}
-
-	return response, nil
 }
