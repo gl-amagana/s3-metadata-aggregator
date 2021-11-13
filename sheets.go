@@ -15,6 +15,12 @@ import (
 	"time"
 )
 
+type SpreadSheetMetadata struct {
+	spreadsheetId  string
+	spreadsheetUrl string
+	sheetTitle     string
+}
+
 // getClient - Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
 	// The file token.json stores the user's access and refresh tokens, and is
@@ -114,7 +120,7 @@ func createSpreadsheet() sheets.Spreadsheet {
 }
 
 // setupSpreadsheet - Adds header values to spreadsheet
-func setupSheet(spreadsheetId string) string {
+func setupSheet(spreadsheetId string) SpreadSheetMetadata {
 	spreadsheet := sheetService()
 
 	// Check that spreadsheet exists
@@ -123,19 +129,23 @@ func setupSheet(spreadsheetId string) string {
 		log.Fatalf("Unable to find spreadsheet: %v\n", err)
 	}
 
-	sheetTitle := time.Now().Format("2006-02-01")
+	spreadsheetMetadata := SpreadSheetMetadata{
+		spreadsheetId:  resp.SpreadsheetId,
+		spreadsheetUrl: resp.SpreadsheetUrl,
+		sheetTitle:     time.Now().Format("2006-02-01"),
+	}
 
 	// Create new sheet w/ title as current date.
 	sheetPropertyReq := sheets.Request{
 		AddSheet: &sheets.AddSheetRequest{
 			Properties: &sheets.SheetProperties{
-				Title:    sheetTitle,
+				Title:    spreadsheetMetadata.sheetTitle,
 				TabColor: &sheets.Color{Red: float64(1)},
 			},
 		},
 	}
 
-	writeRange := sheetTitle + "!A1"
+	writeRange := spreadsheetMetadata.sheetTitle + "!A1"
 
 	batchRequest := sheets.BatchUpdateSpreadsheetRequest{
 		Requests: []*sheets.Request{&sheetPropertyReq}}
@@ -144,7 +154,7 @@ func setupSheet(spreadsheetId string) string {
 	if err != nil {
 		log.Fatalf("Unable to add new sheet: %v", err)
 	}
-	
+
 	// Add appropriate headers
 	values := [][]interface{}{{"Account ID", "Bucket Name", "Encryption", "isVersioned?", "No. of Objects Unencrypted", "isLoggingEnabled?"}}
 	batchValueReq := sheets.BatchUpdateValuesRequest{ValueInputOption: "RAW"}
@@ -153,20 +163,20 @@ func setupSheet(spreadsheetId string) string {
 		Values: values,
 	})
 
-	_, err = spreadsheet.Values.BatchUpdate(spreadsheetId, &batchValueReq).Do()
+	_, err = spreadsheet.Values.BatchUpdate(spreadsheetMetadata.spreadsheetId, &batchValueReq).Do()
 	if err != nil {
 		log.Fatalf("Unable to write to spreadsheet: %v", err)
 	}
 
-	return sheetTitle
+	return spreadsheetMetadata
 }
 
 // populateSpreadsheet - Populates appropriate columns; must match headers
-func populateSpreadsheet(spreadsheetId string, sheetTitle string, collection *BucketMetaDataCollection) {
+func populateSpreadsheet(spreadsheetMetadata *SpreadSheetMetadata, collection *BucketMetaDataCollection) {
 	log.Println("Populating spreadsheet...")
 	spreadsheet := sheetService()
 
-	writeRange := sheetTitle + "!A2"
+	writeRange := spreadsheetMetadata.sheetTitle + "!A2"
 
 	var values [][]interface{}
 	for _, bucket := range collection.GetItems() {
@@ -186,7 +196,7 @@ func populateSpreadsheet(spreadsheetId string, sheetTitle string, collection *Bu
 		Values: values,
 	})
 
-	_, err := spreadsheet.Values.BatchUpdate(spreadsheetId, &batchValuesRequest).Do()
+	_, err := spreadsheet.Values.BatchUpdate(spreadsheetMetadata.spreadsheetId, &batchValuesRequest).Do()
 	if err != nil {
 		log.Fatalf("Unable to write to spreadsheet: %v", err)
 	}
