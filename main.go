@@ -4,8 +4,7 @@ import "log"
 
 func main() {
 	// Get existing spreadsheet
-	spreadsheet, _ := getSpreadsheet(SpreadsheetId)
-	sheetTitle := setupSheet(spreadsheet.SpreadsheetId)
+	sheetTitle := setupSheet(SpreadsheetId)
 
 	// Collect data
 	bucketMetadataCollection := getAllBucketMetadata()

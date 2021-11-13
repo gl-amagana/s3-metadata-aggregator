@@ -20,7 +20,7 @@ func getClient(config *oauth2.Config) *http.Client {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
 	// time.
-	tokFile := "resources/token.json"
+	tokFile := TokenFile
 	tok, err := tokenFromFile(tokFile)
 	if err != nil {
 		tok = getTokenFromWeb(config)
@@ -77,7 +77,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 // sheetService - Creates a Google Sheet client
 func sheetService() *sheets.SpreadsheetsService {
 	ctx := context.Background()
-	b, err := ioutil.ReadFile("resources/credentials.json")
+	b, err := ioutil.ReadFile(CredentialsFile)
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
@@ -96,18 +96,6 @@ func sheetService() *sheets.SpreadsheetsService {
 	return srv.Spreadsheets
 }
 
-// getSpreadsheet - Gets an existing Google spreadsheet
-func getSpreadsheet(spreadsheetId string) (*sheets.Spreadsheet, error) {
-	spreadsheet := sheetService()
-	response, err := spreadsheet.Get(spreadsheetId).Do()
-	if err != nil {
-		log.Fatalf("Unable to find spreadsheet: %v\n", err)
-		return nil, err
-	}
-	log.Println("Found existing spreadsheet")
-	return response, nil
-}
-
 // createSpreadsheet - Creates a new Google Spreadsheet
 func createSpreadsheet() sheets.Spreadsheet {
 	spreadsheet := sheetService()
@@ -119,7 +107,6 @@ func createSpreadsheet() sheets.Spreadsheet {
 	response, err := spreadsheet.Create(&newSpreadsheet).Do()
 	if err != nil {
 		log.Fatalf("Unable to create spreadsheet: %v", err)
-		return sheets.Spreadsheet{}
 	}
 
 	log.Println("Creating spreadsheet")
@@ -129,6 +116,12 @@ func createSpreadsheet() sheets.Spreadsheet {
 // setupSpreadsheet - Adds header values to spreadsheet
 func setupSheet(spreadsheetId string) string {
 	spreadsheet := sheetService()
+
+	// Check that spreadsheet exists
+	resp, err := spreadsheet.Get(spreadsheetId).Do()
+	if err != nil {
+		log.Fatalf("Unable to find spreadsheet: %v\n", err)
+	}
 
 	sheetTitle := time.Now().Format("2006-02-01")
 
@@ -147,11 +140,11 @@ func setupSheet(spreadsheetId string) string {
 	batchRequest := sheets.BatchUpdateSpreadsheetRequest{
 		Requests: []*sheets.Request{&sheetPropertyReq}}
 
-	_, err := spreadsheet.BatchUpdate(spreadsheetId, &batchRequest).Do()
+	_, err = spreadsheet.BatchUpdate(resp.SpreadsheetId, &batchRequest).Do()
 	if err != nil {
 		log.Fatalf("Unable to add new sheet: %v", err)
 	}
-
+	
 	// Add appropriate headers
 	values := [][]interface{}{{"Account ID", "Bucket Name", "Encryption", "isVersioned?", "No. of Objects Unencrypted", "isLoggingEnabled?"}}
 	batchValueReq := sheets.BatchUpdateValuesRequest{ValueInputOption: "RAW"}
