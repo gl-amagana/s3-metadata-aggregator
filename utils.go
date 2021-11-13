@@ -32,7 +32,7 @@ type AWSClients struct {
 // getAllProfiles() will return all profiles from profiles.json
 func getAllProfiles() []string {
 	profiles := Profiles{}
-	jsonFile, err := os.Open("profiles.json")
+	jsonFile, err := os.Open("resources/profiles.json")
 	input, _ := ioutil.ReadAll(jsonFile)
 	err = json.Unmarshal(input, &profiles)
 	if err != nil {
@@ -49,7 +49,7 @@ func getAllProfiles() []string {
 
 func getAllRegions() []string {
 	regions := Regions{}
-	jsonFile, err := os.Open("regions.json")
+	jsonFile, err := os.Open("resources/regions.json")
 	input, _ := ioutil.ReadAll(jsonFile)
 	err = json.Unmarshal(input, &regions)
 	if err != nil {
