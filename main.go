@@ -11,5 +11,5 @@ func main() {
 
 	// Set spreadsheet data
 	populateSpreadsheet(&spreadsheet, bucketMetadataCollection)
-	log.Printf("Spreadsheet URL: %s\t\n", spreadsheet.spreadsheetUrl)
+	log.Printf("Spreadsheet URL: %s\t", spreadsheet.spreadsheetUrl)
 }
